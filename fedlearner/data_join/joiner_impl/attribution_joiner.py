@@ -133,7 +133,7 @@ class _Trigger(object):
               0 <= cid <= conv_win_size and                            \
               show_window[show_win_size][1].event_time >               \
               conv_window[cid][1].event_time +                         \
-                    self._max_conversion_delay/5:
+                    self._max_conversion_delay:
             #FIXME current et is not always the watermark
             self._watermark = max(conv_window[cid][1].event_time,      \
                                   self._watermark)
@@ -329,9 +329,6 @@ class AttributionJoiner(ExampleJoiner):
                         sync_example_id_finished, raw_data_finished,
                         self._leader_join_window.size(), \
                         self._follower_join_window.size())
-            if follower_exhausted or leader_exhausted:
-                join_data_finished = True
-                break
 
             watermark = self._trigger.watermark()
             #1. find all the matched pairs in current window
@@ -362,9 +359,15 @@ class AttributionJoiner(ExampleJoiner):
                          len(self._sorted_buf_by_leader_index),         \
                          len(raw_pairs), len(pairs), stride)
 
-            if not leader_filled and not sync_example_id_finished and \
-               self._leader_join_window.reserved_size() > 0:
+            if not leader_filled and                                    \
+               not sync_example_id_finished and                         \
+               self._leader_join_window.reserved_size() > 0 and         \
+               not follower_exhausted:
                 logging.info("Wait for Leader syncing example id...")
+                break
+
+            if leader_exhausted or follower_exhausted:
+                join_data_finished = True
                 break
 
             if stride == (0, 0):
