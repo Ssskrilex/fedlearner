@@ -1,7 +1,7 @@
 const project_list = [
   {
     id: 1,
-    name: '打算理发吉利金刚',
+    name: 'Foo project',
     token: '51aa8b39a5444f24ae7e403ac7f6029c',
     config: {
       token: '51aa8b39a5444f24ae7e403ac7f6029c',
@@ -24,13 +24,13 @@ const project_list = [
     updated_at: 1608582145.0,
     deleted_at: null,
   },
-]
+];
 
 const res = {
   data: {
     data: project_list,
   },
   status: 200,
-}
+};
 
-export default res
+export default res;

@@ -1,3 +1,14 @@
+import {
+  ComponentSize,
+  InputWidgetSchema,
+  SelectWidgetSchema,
+  UploadWidgetSchema,
+  NumberPickerWidgetSchema,
+  SwitchWidgetSchema,
+  TextAreaWidgetSchema,
+  WidgetWithOptionsSchema,
+} from './component';
+
 export enum VariableComponent {
   Input = 'Input',
   Select = 'Select',
@@ -10,58 +21,7 @@ export enum VariableComponent {
   Upload = 'Upload',
 }
 
-export type VariableRule = { validator: RegExp | string; message: string }
-
-interface InputWidgetSchema {
-  /** ------ UIs ------ */
-  prefix?: string
-  suffix?: string
-  showCount?: boolean
-  maxLength?: number
-}
-
-interface NumberPickerWidgetSchema {
-  /** ------ UIs ------ */
-  max?: number
-  min?: number
-  formatter?: (v: number) => string
-  parser?: (s: string) => number
-}
-
-interface TextAreaWidgetSchema {
-  /** ------ UIs ------ */
-  showCount?: boolean
-  maxLength?: number
-  rows?: number
-}
-
-interface SelectWidgetSchema {
-  /** ------ Datas ------ */
-  multiple?: boolean
-  filterable?: boolean
-}
-
-interface WidgetWithOptionsSchema {
-  /** ------ Datas ------ */
-  options?: {
-    type: 'static' | 'dynamic'
-    // 1. static options for components like select | checkbox group | radio group...
-    // 2. dynamic options is an endpoint of source
-    source: Array<string | number | { value: any; label: string }> | string
-  }
-}
-interface SwitchWidgetSchema {
-  /** ------ uIs ------ */
-  checkedChildren?: string
-  unCheckedChildren?: string
-}
-
-interface UploadWidgetSchema {
-  /** ------ Datas ------ */
-  accept?: string
-  action?: string
-  multiple?: boolean
-}
+export type VariableRule = { validator: RegExp | string; message: string };
 
 export interface VariableWidgetSchema
   extends UploadWidgetSchema,
@@ -74,79 +34,158 @@ export interface VariableWidgetSchema
     WidgetWithOptionsSchema {
   /** ------ Metas ------ */
   // which component to use
-  component: VariableComponent
+  component: VariableComponent;
 
   /** ------ Datas ------ */
   // NOTE: for array type value, it clould be either a Multiple-select/Checkbox
   // or a Group-items which allow user add | delete. eg. ENV field
-  type: 'string' | 'numebr' | 'boolean' | 'array' | 'object'
-  initialValue?: string | number | boolean | any[] | object
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+  initialValue?: string | number | boolean | any[] | object;
 
   /** ------ UIs ------ */
   // i18n key for job name form-item label
-  label: string
+  label: string;
   // display order
-  index: number
+  index: number;
   // will render a question icon beside the label, hover it to show the tooltip
-  tooltip?: string
+  tooltip?: string;
   // will render some text below the form item
-  description?: string
-  placeholder?: string
-  size?: ComponentSize
+  description?: string;
+  placeholder?: string;
+  size?: ComponentSize;
 
   /** ------ Validations ------ */
   // RegExp string '\d'
-  pattern?: string
-  rules?: VariableRule[]
+  pattern?: string;
+  rules?: VariableRule[];
+  required?: boolean;
 
   /** ------ Miscs ------ */
-  [key: string]: any
+  [key: string]: any;
 }
 
 /** 🚧 NOTE: Types below are NOT the final verison at current stage */
 
 export enum VariableAccessMode {
-  UNSPECIFIED,
-  PRIVATE,
-  PEER_READABLE,
-  PEER_WRITABLE,
+  UNSPECIFIED = 'UNSPECIFIED',
+  PRIVATE = 'PRIVATE',
+  PEER_READABLE = 'PEER_READABLE',
+  PEER_WRITABLE = 'PEER_WRITABLE',
 }
 
 export interface Variable {
-  name: string
-  value: any
-  access_mode: VariableAccessMode
-  widget_schema: VariableWidgetSchema
+  name: string;
+  value: any;
+  access_mode: VariableAccessMode;
+  widget_schema: VariableWidgetSchema;
 }
 
 export enum JobType {
-  UNSPECIFIED,
-  RAW_DATA,
-  DATA_JOIN,
-  PSI_DATA_JOIN,
-  NN_MODEL_TRANINING,
-  TREE_MODEL_TRAINING,
-  NN_MODEL_EVALUATION,
-  TREE_MODEL_EVALUATION,
+  UNSPECIFIED = 'UNSPECIFIED',
+  RAW_DATA = 'RAW_DATA',
+  DATA_JOIN = 'DATA_JOIN',
+  PSI_DATA_JOIN = 'PSI_DATA_JOIN',
+  NN_MODEL_TRANINING = 'NN_MODEL_TRANINING',
+  TREE_MODEL_TRAINING = 'TREE_MODEL_TRAINING',
+  NN_MODEL_EVALUATION = 'NN_MODEL_EVALUATION',
+  TREE_MODEL_EVALUATION = 'TREE_MODEL_EVALUATION',
 }
 
-enum JobDependencyType {
-  UNSPECIFIED,
-  ON_COMPLETE,
-  ON_START,
-  MANUAL,
+export enum JobState {
+  READY = 'READY',
+}
+
+export enum JobDependencyType {
+  UNSPECIFIED = 'UNSPECIFIED',
+  ON_COMPLETE = 'ON_COMPLETE',
+  ON_START = 'ON_START',
+  MANUAL = 'MANUAL',
 }
 
 export interface JobDependency {
-  source: string
-  type: JobDependencyType
+  source: string;
+  type: JobDependencyType;
 }
 
 export interface Job {
-  name: string
-  type: JobType
-  template: string
-  is_federated: boolean
-  variables: Variable[]
-  dependencies: JobDependency[]
+  name: string;
+  type: JobType;
+  template?: string;
+  is_federated: boolean;
+  is_left?: boolean;
+  is_manual?: boolean;
+  variables: Variable[];
+  dependencies: JobDependency[];
+  yaml_template?: string;
 }
+
+export type WorkflowConfig = {
+  group_alias: string;
+  is_left: boolean;
+  variables?: Variable[];
+  job_definitions: Job[];
+};
+
+export interface WorkflowTemplate {
+  id: number;
+  name: string;
+  comment: string;
+  is_left: boolean;
+  group_alias: string;
+  config: WorkflowConfig;
+}
+
+export type WorkflowTemplatePayload = {
+  name: string;
+  comment?: string;
+  config: any;
+};
+
+export type WorkflowInitiatePayload = {
+  name: string;
+  project_id: string;
+  forkable: boolean;
+  forked_from?: boolean;
+  config: WorkflowConfig;
+  comment?: string;
+};
+
+export enum WorkflowState {
+  INVALID = 'INVALID',
+  NEW = 'NEW',
+  READY = 'READY',
+  RUNNING = 'RUNNING',
+  STOPPED = 'STOPPED',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum TransactionState {
+  READY = 'READY',
+  ABORTED = 'ABORTED',
+
+  COORDINATOR_PREPARE = 'COORDINATOR_PREPARE',
+  COORDINATOR_COMMITTABLE = 'COORDINATOR_COMMITTABLE',
+  COORDINATOR_COMMITTING = 'COORDINATOR_COMMITTING',
+  COORDINATOR_ABORTING = 'COORDINATOR_ABORTING',
+
+  PARTICIPANT_PREPARE = 'PARTICIPANT_PREPARE',
+  PARTICIPANT_COMMITTABLE = 'PARTICIPANT_COMMITTABLE',
+  PARTICIPANT_COMMITTING = 'PARTICIPANT_COMMITTING',
+  PARTICIPANT_ABORTING = 'PARTICIPANT_ABORTING',
+}
+
+export type Workflow = {
+  id: number;
+  name: string;
+  project_id: number;
+  config: WorkflowConfig | null;
+  forkable: boolean;
+  forked_from?: boolean | null;
+  comment: string | null;
+  state: WorkflowState;
+  target_state: WorkflowState;
+  transaction_state: TransactionState;
+  transaction_err: string | null;
+  created_at: DateTime;
+  updated_at: DateTime;
+};

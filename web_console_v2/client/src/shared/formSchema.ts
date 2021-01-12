@@ -1,16 +1,23 @@
-import { Job, Variable, VariableAccessMode, VariableComponent } from 'typings/workflow'
-import { FormilySchema } from 'typings/formily'
-import VariableLabel from 'components/VariableLabel/index'
-import { merge } from 'lodash'
-import variablePresets, { VariablePresets } from './variablePresets'
+import {
+  Job,
+  Variable,
+  VariableAccessMode,
+  VariableComponent,
+  WorkflowTemplatePayload,
+} from 'typings/workflow';
+import { FormilySchema } from 'typings/formily';
+import VariableLabel from 'components/VariableLabel/index';
+import { cloneDeep, merge } from 'lodash';
+import variablePresets, { VariablePresets } from './variablePresets';
 
 //---- Variable to Schema private helpers --------
 
 function _getPermissions({ access_mode }: Variable) {
   return {
-    readOnly: access_mode === VariableAccessMode.PEER_READABLE,
-    display: access_mode !== VariableAccessMode.PRIVATE,
-  }
+    // FIXME: only control participant side's permissions
+    readOnly: false && access_mode === VariableAccessMode.PEER_READABLE,
+    display: true || access_mode !== VariableAccessMode.PRIVATE,
+  };
 }
 
 function _getDatas({ value, widget_schema: { type, options } }: Variable) {
@@ -20,37 +27,41 @@ function _getDatas({ value, widget_schema: { type, options } }: Variable) {
     type,
     default: value,
     enum: options,
-  }
+  };
 }
 
 function _getUIs({
   name,
+  access_mode,
   widget_schema: { size, placeholder, index, label, tooltip, description },
 }: Variable) {
   return {
-    title: label ? VariableLabel({ label, tooltip }) : name,
+    title: label
+      ? VariableLabel({ label, tooltip, access_mode })
+      : VariableLabel({ label: name, access_mode }),
     description,
     'x-index': index,
     'x-component-props': {
       size,
       placeholder,
     },
-  }
+  };
 }
 
-function _getValidations({ widget_schema: { pattern, rules } }: Variable) {
+function _getValidations({ widget_schema: { pattern, rules, required } }: Variable) {
   return {
+    required,
     pattern,
     'x-rules': rules,
-  }
+  };
 }
 
 //---- Form Schema Workers --------
 export function createInput(variable: Variable): FormilySchema {
   const {
     name,
-    widget_schema: { prefix, suffix, showCount, maxLength },
-  } = variable
+    widget_schema: { prefix, suffix, maxLength },
+  } = variable;
 
   return {
     [name]: merge(
@@ -65,20 +76,19 @@ export function createInput(variable: Variable): FormilySchema {
           // https://ant.design/components/input/#Input
           prefix,
           suffix,
-          showCount,
           maxLength,
           allowClear: true,
         },
       },
     ),
-  }
+  };
 }
 
 export function createTextArea(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { rows, showCount, maxLength },
-  } = variable
+  } = variable;
 
   return {
     [name]: merge(
@@ -95,14 +105,14 @@ export function createTextArea(variable: Variable): FormilySchema {
         },
       },
     ),
-  }
+  };
 }
 
 export function createSelect(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { options, filterOption, multiple },
-  } = variable
+  } = variable;
 
   return {
     [name]: merge(
@@ -122,14 +132,14 @@ export function createSelect(variable: Variable): FormilySchema {
         },
       },
     ),
-  }
+  };
 }
 
 export function createSwitch(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { checkedChildren, unCheckedChildren },
-  } = variable
+  } = variable;
 
   return {
     [name]: merge(
@@ -145,14 +155,14 @@ export function createSwitch(variable: Variable): FormilySchema {
         },
       },
     ),
-  }
+  };
 }
 
 export function createCheckbox(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { options },
-  } = variable
+  } = variable;
 
   return {
     [name]: merge(
@@ -165,14 +175,14 @@ export function createCheckbox(variable: Variable): FormilySchema {
         'x-component': 'Checkbox',
       },
     ),
-  }
+  };
 }
 
 export function createRadio(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { options },
-  } = variable
+  } = variable;
 
   return {
     [name]: merge(
@@ -185,14 +195,14 @@ export function createRadio(variable: Variable): FormilySchema {
         'x-component': 'Radio',
       },
     ),
-  }
+  };
 }
 
 export function createNumberPicker(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { min, max, formatter, parser },
-  } = variable
+  } = variable;
 
   return {
     [name]: merge(
@@ -201,6 +211,8 @@ export function createNumberPicker(variable: Variable): FormilySchema {
       _getPermissions(variable),
       _getValidations(variable),
       {
+        minimum: min,
+        maximum: max,
         'x-component': 'NumberPicker',
         'x-component-props': {
           min,
@@ -210,14 +222,14 @@ export function createNumberPicker(variable: Variable): FormilySchema {
         },
       },
     ),
-  }
+  };
 }
 
 export function createUpload(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { accept, action, multiple },
-  } = variable
+  } = variable;
 
   return {
     [name]: merge(
@@ -236,7 +248,7 @@ export function createUpload(variable: Variable): FormilySchema {
         },
       },
     ),
-  }
+  };
 }
 
 // ---- Component to Workers map --------
@@ -249,34 +261,61 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
   [VariableComponent.Radio]: createRadio,
   [VariableComponent.NumberPicker]: createNumberPicker,
   [VariableComponent.Upload]: createUpload,
-}
+};
 
 /**
  * Merge server side variable.widget_schema with client side's preset
  * NOTE: server side's config should always priority to client side!
  */
 function mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePresets) {
-  return Object.assign(presets[variable.name] || {}, variable.widget_schema)
+  return Object.assign(presets[variable.name] || {}, variable.widget_schema);
 }
 
 /** Return a formily acceptable schema by server job definition */
-export function buildFormFromJobDef(job: Job): FormilySchema {
-  const { variables, name } = job
-
+export function buildFormSchemaFromJob(job: Job): FormilySchema {
+  const { variables, name } = cloneDeep(job);
   const schema: FormilySchema = {
     type: 'object',
     title: name,
     properties: {},
-  }
+  };
 
   return variables.reduce((schema, current, index) => {
-    const worker = componentToWorkersMap[current.widget_schema.component]
+    const worker = componentToWorkersMap[current.widget_schema.component];
 
-    current.widget_schema = mergeVariableSchemaWithPresets(current, variablePresets)
-    current.widget_schema.index = index
+    current.widget_schema = mergeVariableSchemaWithPresets(current, variablePresets);
+    current.widget_schema.index = index;
 
-    Object.assign(schema.properties, worker(current))
+    Object.assign(schema.properties, worker(current));
 
-    return schema
-  }, schema)
+    return schema;
+  }, schema);
+}
+
+export function stringifyWidgetSchemas(template: WorkflowTemplatePayload) {
+  const ret = cloneDeep(template);
+
+  ret.config?.job_definitions.forEach((job: any) => {
+    job.variables.forEach((variable: any) => {
+      if (typeof variable.widget_schema === 'object') {
+        variable.widget_schema = JSON.stringify(variable.widget_schema);
+      }
+    });
+  });
+
+  return ret;
+}
+
+export function parseWidgetSchemas(template: WorkflowTemplatePayload) {
+  const ret = cloneDeep(template);
+
+  ret.config?.job_definitions.forEach((job: any) => {
+    job.variables.forEach((variable: any) => {
+      if (typeof variable.widget_schema === 'string') {
+        variable.widget_schema = variable.widget_schema ? JSON.parse(variable.widget_schema) : {};
+      }
+    });
+  });
+
+  return ret;
 }
